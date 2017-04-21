@@ -6,6 +6,7 @@
 'use strict';
 require('./init.js');
 var assert = require('assert');
+var async = require('async');
 
 var db, DateModel;
 
@@ -224,7 +225,23 @@ describe('MySQL DATE, DATETTIME, TIMESTAMP types on server with non local TZ (+0
       done();
     });
   });
-
+  it("should return what I put in when connecting directly to the db", (done) => {
+    let dateString = "1991-02-12 11:24:31";
+    async.waterfall([
+      (next) => {
+        db.connector.query('INSERT INTO DateModel (dateTimeField, timestampField) VALUES ("1991-02-12 11:24:31", "1991-02-12 11:24:31")', next);
+      },
+      (res, next) => {
+        DateModel.findById(res.insertId, next);
+      },
+      (obj, next) => {
+        let date = new Date(dateString+".000 "+timezone);
+        assert( Math.abs(date - obj.datetimeField) < 1000, "datetime discrepancy" );
+        assert( Math.abs(date - obj.timestampField) < 1000, "timestamp discrepancy" );
+        next();
+      }
+    ], done);
+  });
   it('should disconnect when done', function(done) {
     db.disconnect();
     done();
